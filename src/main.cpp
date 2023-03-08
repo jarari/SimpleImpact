@@ -1,19 +1,20 @@
+#include "nlohmann/json.hpp"
+#include <SimpleIni.h>
 #include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <random>
-#include <SimpleIni.h>
-#include "nlohmann/json.hpp"
 using namespace RE;
+using std::default_random_engine;
 using std::ifstream;
+using std::queue;
+using std::shuffle;
 using std::unordered_map;
 using std::vector;
-using std::queue;
-using std::default_random_engine;
-using std::shuffle;
 
 char tempbuf[8192] = { 0 };
-char* _MESSAGE(const char* fmt, ...) {
+char* _MESSAGE(const char* fmt, ...)
+{
 	va_list args;
 
 	va_start(args, fmt);
@@ -24,7 +25,8 @@ char* _MESSAGE(const char* fmt, ...) {
 	return tempbuf;
 }
 
-void Dump(void* mem, unsigned int size) {
+void Dump(void* mem, unsigned int size)
+{
 	char* p = static_cast<char*>(mem);
 	unsigned char* up = (unsigned char*)p;
 	std::stringstream stream;
@@ -33,14 +35,14 @@ void Dump(void* mem, unsigned int size) {
 		stream << std::setfill('0') << std::setw(2) << std::hex << (int)up[i] << " ";
 		if (i % 8 == 7) {
 			stream << "\t0x"
-				<< std::setw(2) << std::hex << (int)up[i]
-				<< std::setw(2) << (int)up[i - 1]
-				<< std::setw(2) << (int)up[i - 2]
-				<< std::setw(2) << (int)up[i - 3]
-				<< std::setw(2) << (int)up[i - 4]
-				<< std::setw(2) << (int)up[i - 5]
-				<< std::setw(2) << (int)up[i - 6]
-				<< std::setw(2) << (int)up[i - 7] << std::setfill('0');
+				   << std::setw(2) << std::hex << (int)up[i]
+				   << std::setw(2) << (int)up[i - 1]
+				   << std::setw(2) << (int)up[i - 2]
+				   << std::setw(2) << (int)up[i - 3]
+				   << std::setw(2) << (int)up[i - 4]
+				   << std::setw(2) << (int)up[i - 5]
+				   << std::setw(2) << (int)up[i - 6]
+				   << std::setw(2) << (int)up[i - 7] << std::setfill('0');
 			stream << "\t0x" << std::setw(2) << std::hex << row * 8 << std::setfill('0');
 			_MESSAGE("%s", stream.str().c_str());
 			stream.str(std::string());
@@ -49,7 +51,8 @@ void Dump(void* mem, unsigned int size) {
 	}
 }
 
-TESForm* GetFormFromMod(std::string modname, uint32_t formid) {
+TESForm* GetFormFromMod(std::string modname, uint32_t formid)
+{
 	if (!modname.length() || !formid)
 		return nullptr;
 	TESDataHandler* dh = TESDataHandler::GetSingleton();
@@ -67,8 +70,7 @@ TESForm* GetFormFromMod(std::string modname, uint32_t formid) {
 	uint32_t id = formid;
 	if (modIndex < 0xFE) {
 		id |= ((uint32_t)modIndex) << 24;
-	}
-	else {
+	} else {
 		uint16_t lightModIndex = modFile->smallFileCompileIndex;
 		if (lightModIndex != 0xFFFF) {
 			id |= 0xFE000000 | (uint32_t(lightModIndex) << 12);
@@ -77,8 +79,9 @@ TESForm* GetFormFromMod(std::string modname, uint32_t formid) {
 	return TESForm::GetFormByID(id);
 }
 
-template<class Ty>
-Ty SafeWrite64Function(uintptr_t addr, Ty data) {
+template <class Ty>
+Ty SafeWrite64Function(uintptr_t addr, Ty data)
+{
 	DWORD oldProtect;
 	void* _d[2];
 	memcpy(_d, &data, sizeof(data));
@@ -93,27 +96,32 @@ Ty SafeWrite64Function(uintptr_t addr, Ty data) {
 	return olddata;
 }
 
-namespace F4 {
-	struct Unk {
+namespace F4
+{
+	struct Unk
+	{
 		uint32_t unk00 = 0xFFFFFFFF;
 		uint32_t unk04 = 0x0;
 		uint32_t unk08 = 1;
 	};
 
-	bool PlaySound(BGSSoundDescriptorForm* sndr, NiPoint3 pos, NiAVObject* node) {
+	bool PlaySound(BGSSoundDescriptorForm* sndr, NiPoint3 pos, NiAVObject* node)
+	{
 		typedef bool* func_t(Unk, BGSSoundDescriptorForm*, NiPoint3, NiAVObject*);
 		REL::Relocation<func_t> func{ REL::ID(376497) };
 		Unk u;
 		return func(u, sndr, pos, node);
 	}
 
-	void ShakeCamera(float mul, NiPoint3 origin, float duration, float strength) {
+	void ShakeCamera(float mul, NiPoint3 origin, float duration, float strength)
+	{
 		using func_t = decltype(&F4::ShakeCamera);
 		REL::Relocation<func_t> func{ REL::ID(758209) };
 		return func(mul, origin, duration, strength);
 	}
 
-	void ApplyImageSpaceModifier(TESImageSpaceModifier* imod, float strength, NiAVObject* target) {
+	void ApplyImageSpaceModifier(TESImageSpaceModifier* imod, float strength, NiAVObject* target)
+	{
 		using func_t = decltype(&F4::ApplyImageSpaceModifier);
 		REL::Relocation<func_t> func{ REL::ID(179769) };
 		return func(imod, strength, target);
@@ -203,117 +211,121 @@ float maximumFXStrength = 0.8f;
 bool aimRecoveryDisabled = false;
 bool disableOnFreecam = true;
 
-struct _TESHitEvent {
-	NiPoint3 hitPos; //0x0000 
-	uint32_t unk_0C; //0x000C
-	NiPoint3 normal; //0x0010
-	uint32_t unk_1C; //0x001C
-	NiPoint3 normal2; //0x0020 melee hits return 0,0,0
-	uint32_t unk_2C; //0x002C
-	bhkNPCollisionObject* colObj; //0x0030 
-	char pad_0x0038[0x18]; //0x0038
-	BGSAttackData* attackData; //0x0050
-	TESObjectWEAP* weapon; //0x0058 
-	TESObjectWEAP::InstanceData* weaponInstance; //0x0060 
-	char pad_0x0068[0x18]; //0x0068
-	TESForm* unkitem; //0x0080 
-	char pad_0x0088[0x8]; //0x0088
-	float unk90; //0x0090 
-	float unk94; //0x0094 
-	float unk98; //0x0098 
-	float unk9C; //0x009C 
-	char pad_0x00A0[0x10]; //0x00A0
-	float unkB0; //0x00B0 
-	float unkB4; //0x00B4 
-	char pad_0x00B8[0x8]; //0x00B8
-	float unkC0; //0x00C0 
-	char pad_0x00C4[0xC]; //0x00C4
-	uint32_t bodypart; //0x00D0 
-	char pad_0x00D4[0x4C]; //0x00D4
-	TESObjectREFR* victim; //0x0120 
-	char pad_0x0128[0x38]; //0x0128
-	TESObjectREFR* attacker; //0x0160 
+struct _TESHitEvent
+{
+	NiPoint3 hitPos;                              //0x0000
+	uint32_t unk_0C;                              //0x000C
+	NiPoint3 normal;                              //0x0010
+	uint32_t unk_1C;                              //0x001C
+	NiPoint3 normal2;                             //0x0020 melee hits return 0,0,0
+	uint32_t unk_2C;                              //0x002C
+	bhkNPCollisionObject* colObj;                 //0x0030
+	char pad_0x0038[0x18];                        //0x0038
+	BGSAttackData* attackData;                    //0x0050
+	TESObjectWEAP* weapon;                        //0x0058
+	TESObjectWEAP::InstanceData* weaponInstance;  //0x0060
+	char pad_0x0068[0x18];                        //0x0068
+	TESForm* unkitem;                             //0x0080
+	char pad_0x0088[0x8];                         //0x0088
+	float unk90;                                  //0x0090
+	float unk94;                                  //0x0094
+	float unk98;                                  //0x0098
+	float unk9C;                                  //0x009C
+	char pad_0x00A0[0x10];                        //0x00A0
+	float unkB0;                                  //0x00B0
+	float unkB4;                                  //0x00B4
+	char pad_0x00B8[0x8];                         //0x00B8
+	float unkC0;                                  //0x00C0
+	char pad_0x00C4[0xC];                         //0x00C4
+	uint32_t bodypart;                            //0x00D0
+	char pad_0x00D4[0x4C];                        //0x00D4
+	TESObjectREFR* victim;                        //0x0120
+	char pad_0x0128[0x38];                        //0x0128
+	TESObjectREFR* attacker;                      //0x0160
 };
 
-class HitEventSource : public BSTEventSource<_TESHitEvent> {
+class HitEventSink : public BSTEventSink<TESHitEvent>
+{
 public:
-	[[nodiscard]] static HitEventSource* GetSingleton() {
-		REL::Relocation<HitEventSource*> singleton{ REL::ID(989868) };
-		return singleton.get();
-	}
-};
-
-class HitEventSink : public BSTEventSink<_TESHitEvent> {
-public:
-	virtual BSEventNotifyControl ProcessEvent(const _TESHitEvent& evn, BSTEventSource<_TESHitEvent>* src) override {
-		if ((evn.attackData || evn.weapon) && evn.attacker == p && evn.victim && evn.victim->formType == ENUM_FORM_ID::kACHR) {
-			if (enableHitSound) {
-				if (!playOnGunOnly || (evn.weaponInstance && evn.weaponInstance->type == 9)) {
-					if (*ptr_engineTime - lastHitSound > 0.001f) {
-						if (!playOnAliveOnly || (playOnAliveOnly && !evn.victim->IsDead(true))) {
-							BGSSoundDescriptorForm* sndr = hitSound;
-							if (enableHitSoundHeadshot && evn.bodypart == 1) {
-								bool raceHasHead = true;
-								int i = 0;
-								while (raceHasHead && i < headshotExcludedList.size()) {
-									if (headshotExcludedList[i] == ((Actor*)evn.victim)->race) {
-										raceHasHead = false;
+	virtual BSEventNotifyControl ProcessEvent(const TESHitEvent& evn, BSTEventSource<TESHitEvent>* src) override
+	{
+		if (evn.hasHitData) {
+			if ((evn.hitdata.attackData || evn.hitdata.source.object) && evn.attacker == p && evn.victim && evn.victim->formType == ENUM_FORM_ID::kACHR) {
+				if (enableHitSound) {
+					if (!playOnGunOnly || (evn.hitdata.source.instanceData && ((TESObjectWEAP::InstanceData*)evn.hitdata.source.instanceData.get())->type == WEAPON_TYPE::kGun)) {
+						if (*ptr_engineTime - lastHitSound > 0.001f) {
+							if (!playOnAliveOnly || (playOnAliveOnly && !evn.victim->IsDead(true))) {
+								BGSSoundDescriptorForm* sndr = hitSound;
+								if (enableHitSoundHeadshot && evn.hitdata.bodypartType == 1) {
+									bool raceHasHead = true;
+									int i = 0;
+									while (raceHasHead && i < headshotExcludedList.size()) {
+										if (headshotExcludedList[i] == ((Actor*)evn.victim)->race) {
+											raceHasHead = false;
+										}
+										++i;
 									}
-									++i;
-								}
 
-								if (raceHasHead) {
-									sndr = hitSoundHead;
+									if (raceHasHead) {
+										sndr = hitSoundHead;
+									}
 								}
+								F4::PlaySound(sndr, evn.attacker->data.location, pcam->cameraRoot.get());
+								lastHitSound = *ptr_engineTime;
 							}
-							F4::PlaySound(sndr, evn.attacker->data.location, pcam->cameraRoot.get());
-							lastHitSound = *ptr_engineTime;
 						}
 					}
 				}
-			}
-			if (enableKillSound || enableKillQuote) {
-				lastVictimHit = (Actor*)evn.victim;
-				lastBodypartHit = evn.bodypart;
-				lastTimeHit = *ptr_engineTime;
+				if (enableKillSound || enableKillQuote) {
+					lastVictimHit = (Actor*)evn.victim;
+					lastBodypartHit = evn.hitdata.bodypartType;
+					lastTimeHit = *ptr_engineTime;
+				}
 			}
 		}
 		return BSEventNotifyControl::kContinue;
 	}
-	HitEventSink() {};
-	virtual ~HitEventSink() {};
+	HitEventSink(){};
+	virtual ~HitEventSink(){};
 	F4_HEAP_REDEFINE_NEW(HitEventSink);
 };
 
-bool CheckPA(Actor* a) {
+bool CheckPA(Actor* a)
+{
 	if (!a->extraList) {
 		return false;
 	}
-	return a->extraList->HasType(EXTRA_DATA_TYPE::kPowerArmor);;
+	return a->extraList->HasType(EXTRA_DATA_TYPE::kPowerArmor);
+	;
 }
 
-bool IsThirdPerson() {
+bool IsThirdPerson()
+{
 	return pcam->currentState == pcam->cameraStates[CameraState::k3rdPerson];
 }
 
-bool IsInADS(Actor* a) {
-	return a->gunState == 0x8;
+bool IsInADS(Actor* a)
+{
+	return a->gunState == GUN_STATE::kSighted || a->gunState == GUN_STATE::kFireSighted;
 }
 
-bool IsSneaking(Actor* a) {
+bool IsSneaking(Actor* a)
+{
 	return a->stance == 0x1;
 }
 
-class AnimationGraphEventWatcher : public BSTEventSink<BSAnimationGraphEvent> {
+class AnimationGraphEventWatcher : public BSTEventSink<BSAnimationGraphEvent>
+{
 public:
-	typedef BSEventNotifyControl (AnimationGraphEventWatcher::* FnProcessEvent)(BSAnimationGraphEvent& evn, BSTEventSource<BSAnimationGraphEvent>* dispatcher);
+	typedef BSEventNotifyControl (AnimationGraphEventWatcher::*FnProcessEvent)(BSAnimationGraphEvent& evn, BSTEventSource<BSAnimationGraphEvent>* dispatcher);
 
-	BSEventNotifyControl HookedProcessEvent(BSAnimationGraphEvent& evn, BSTEventSource<BSAnimationGraphEvent>* src) {
-		if (evn.animEvent == std::string("weaponFire") && evn.argument != std::string("2") && (p->gunState == 0x8 || p->gunState == 0x7)) {
+	BSEventNotifyControl HookedProcessEvent(BSAnimationGraphEvent& evn, BSTEventSource<BSAnimationGraphEvent>* src)
+	{
+		if (evn.animEvent == std::string("weaponFire") && evn.argument != std::string("2") && (p->gunState == GUN_STATE::kFireSighted || p->gunState == GUN_STATE::kFire)) {
 			if (p->currentProcess) {
 				BSTArray<EquippedItem>& equipped = p->currentProcess->middleHigh->equippedItems;
 				if (equipped.size() > 0 && equipped[0].item.instanceData &&
-					((TESObjectWEAP::InstanceData*)equipped[0].item.instanceData.get())->type == 9 && (!disableOnFreecam || pcam->currentState != pcam->cameraStates[CameraState::kFree])) {
+					((TESObjectWEAP::InstanceData*)equipped[0].item.instanceData.get())->type == WEAPON_TYPE::kGun && (!disableOnFreecam || pcam->currentState != pcam->cameraStates[CameraState::kFree])) {
 					if (enableShake) {
 						float tempShakeDuration = shakeDuration;
 						float tempShakeStrength = shakeStrength;
@@ -345,7 +357,8 @@ public:
 		return fn ? (this->*fn)(evn, src) : BSEventNotifyControl::kContinue;
 	}
 
-	void HookSink() {
+	void HookSink()
+	{
 		uint64_t vtable = *(uint64_t*)this;
 		auto it = fnHash.find(vtable);
 		if (it == fnHash.end()) {
@@ -354,7 +367,8 @@ public:
 		}
 	}
 
-	void UnHookSink() {
+	void UnHookSink()
+	{
 		uint64_t vtable = *(uint64_t*)this;
 		auto it = fnHash.find(vtable);
 		if (it == fnHash.end())
@@ -368,15 +382,17 @@ protected:
 };
 std::unordered_map<uint64_t, AnimationGraphEventWatcher::FnProcessEvent> AnimationGraphEventWatcher::fnHash;
 
-float Lerp(float a, float b, float t) {
+float Lerp(float a, float b, float t)
+{
 	return a + (b - a) * min(max(t, 0), 1);
 }
 
-void CalculateScore(Actor* a) {
+void CalculateScore(Actor* a)
+{
 	if (a->currentProcess) {
 		BSTArray<EquippedItem>& equipped = a->currentProcess->middleHigh->equippedItems;
 		if (equipped.size() > 0 && equipped[0].item.instanceData &&
-			((TESObjectWEAP::InstanceData*)equipped[0].item.instanceData.get())->type == 9) {
+			((TESObjectWEAP::InstanceData*)equipped[0].item.instanceData.get())->type == WEAPON_TYPE::kGun) {
 			TESObjectWEAP* wep = ((TESObjectWEAP*)equipped[0].item.object);
 			TESObjectWEAP::InstanceData* instance = (TESObjectWEAP::InstanceData*)equipped[0].item.instanceData.get();
 			uint32_t ammoID = 0;
@@ -436,16 +452,11 @@ void CalculateScore(Actor* a) {
 	}
 }
 
-struct TESEquipEvent {
-	Actor* a;					//00
-	uint32_t formId;			//0C
-	uint32_t unk08;				//08
-	uint64_t flag;				//10 0x00000000ff000000 for unequip
-};
-
-class EquipWatcher : public BSTEventSink<TESEquipEvent> {
+class EquipWatcher : public BSTEventSink<TESEquipEvent>
+{
 public:
-	virtual BSEventNotifyControl ProcessEvent(const TESEquipEvent& evn, BSTEventSource<TESEquipEvent>* a_source) {
+	virtual BSEventNotifyControl ProcessEvent(const TESEquipEvent& evn, BSTEventSource<TESEquipEvent>* a_source)
+	{
 		if ((enableShake || enableFX) && evn.a == p) {
 			TESForm* item = TESForm::GetFormByID(evn.formId);
 			if (item && item->formType == ENUM_FORM_ID::kWEAP) {
@@ -457,39 +468,41 @@ public:
 	F4_HEAP_REDEFINE_NEW(EquipWatcher);
 };
 
-class EquipEventSource : public BSTEventSource<TESEquipEvent> {
-public:
-	[[nodiscard]] static EquipEventSource* GetSingleton() {
-		REL::Relocation<EquipEventSource*> singleton{ REL::ID(485633) };
-		return singleton.get();
-	}
-}; 
-
-void ShuffleKillQuote() {
+void ShuffleKillQuote()
+{
 	unsigned seed = 0;
 	shuffle(killQuoteQueue.begin(), killQuoteQueue.end(), default_random_engine(seed));
 }
 
-class MenuWatcher : public BSTEventSink<MenuOpenCloseEvent> {
-	virtual BSEventNotifyControl ProcessEvent(const MenuOpenCloseEvent& evn, BSTEventSource<MenuOpenCloseEvent>* src) override {
+class MenuWatcher : public BSTEventSink<MenuOpenCloseEvent>
+{
+	virtual BSEventNotifyControl ProcessEvent(const MenuOpenCloseEvent& evn, BSTEventSource<MenuOpenCloseEvent>* src) override
+	{
 		if (evn.opening && evn.menuName == BSFixedString("LoadingMenu")) {
 			ShuffleKillQuote();
 		}
 		return BSEventNotifyControl::kContinue;
 	}
+
 public:
 	F4_HEAP_REDEFINE_NEW(MenuWatcher);
 };
 
-struct TESDeathEvent {
-	TESObjectREFR* victim;
-	TESObjectREFR* attacker;
-	bool processed;
-};
+namespace REex
+{
+	struct TESDeathEvent
+	{
+		TESObjectREFR* victim;
+		TESObjectREFR* attacker;
+		bool processed;
+	};
+}
 
-class DeathWatcher : public BSTEventSink<TESDeathEvent> {
+class DeathWatcher : public BSTEventSink<REex::TESDeathEvent>
+{
 public:
-	virtual BSEventNotifyControl ProcessEvent(const TESDeathEvent& evn, BSTEventSource<TESDeathEvent>* a_source) {
+	virtual BSEventNotifyControl ProcessEvent(const REex::TESDeathEvent& evn, BSTEventSource<REex::TESDeathEvent>* a_source)
+	{
 		if (!evn.processed && evn.attacker == p && evn.victim == lastVictimHit && *ptr_engineTime - lastTimeHit < 0.075f && evn.attacker->Get3D()) {
 			if (enableKillSound) {
 				if (*ptr_engineTime - lastKillSound > 0.001f) {
@@ -530,15 +543,18 @@ public:
 	F4_HEAP_REDEFINE_NEW(DeathWatcher);
 };
 
-class DeathEventSource : public BSTEventSource<TESDeathEvent> {
+class DeathEventSource : public BSTEventSource<REex::TESDeathEvent>
+{
 public:
-	[[nodiscard]] static DeathEventSource* GetSingleton() {
+	[[nodiscard]] static DeathEventSource* GetSingleton()
+	{
 		REL::Relocation<DeathEventSource*> singleton{ REL::ID(1058809) };
 		return singleton.get();
 	}
 };
 
-void InitializePlugin() {
+void InitializePlugin()
+{
 	p = PlayerCharacter::GetSingleton();
 	pcam = PlayerCamera::GetSingleton();
 	hs_body_soundList.push_back((BGSSoundDescriptorForm*)GetFormFromMod(std::string("SimpleImpact.esp"), 0x800));
@@ -602,8 +618,7 @@ void InitializePlugin() {
 		BGSKeyword** keywords = (*it)->keywords;
 		uint32_t i = 0;
 		while (i < (*it)->numKeywords) {
-			if (keywords[i] == actorTypeLibertyPrime || keywords[i] == actorTypeMirelurk
-				|| keywords[i] == actorTypeRobot || keywords[i] == actorTypeTurret || keywords[i] == isVertibird) {
+			if (keywords[i] == actorTypeLibertyPrime || keywords[i] == actorTypeMirelurk || keywords[i] == actorTypeRobot || keywords[i] == actorTypeTurret || keywords[i] == isVertibird) {
 				headshotExcludedList.push_back(*it);
 				i = (*it)->numKeywords;
 				_MESSAGE("%s excluded", (*it)->GetFullName());
@@ -627,7 +642,8 @@ void InitializePlugin() {
 	UI::GetSingleton()->GetEventSource<MenuOpenCloseEvent>()->RegisterSink(mw);
 }
 
-void LoadConfigs() {
+void LoadConfigs()
+{
 	_MESSAGE("Loading configs");
 	ini.LoadFile("Data\\F4SE\\Plugins\\SimpleImpact.ini");
 	enableHitSound = std::stoi(ini.GetValue("HitSound", "Enabled", "1")) > 0;
@@ -698,12 +714,11 @@ void LoadConfigs() {
 	*(uint8_t*)((uintptr_t)killSoundHead->impl + 0x38) = ks_head_freqShift;
 	*(uint8_t*)((uintptr_t)killSoundHead->impl + 0x39) = ks_head_freqVariance;
 	*(uint16_t*)((uintptr_t)killSoundHead->impl + 0x3C) = ks_head_staticAttenuation;
-	
+
 	for (auto it = killQuoteList->arrayOfForms.begin(); it != killQuoteList->arrayOfForms.end(); ++it) {
 		if ((*it)->formType == ENUM_FORM_ID::kSNDR) {
 			*(uint16_t*)((uintptr_t)((BGSSoundDescriptorForm*)*it)->impl + 0x3C) = kq_staticAttenuation;
-		}
-		else {
+		} else {
 			_MESSAGE("Non-sound form detected in the form list!");
 		}
 	}
@@ -764,11 +779,9 @@ void LoadConfigs() {
 				for (auto valit = formit.value().begin(); valit != formit.value().end(); ++valit) {
 					if (valit.key() == "ShakeDuration") {
 						customShakeDuration.insert(std::pair<TESForm*, float>(form, valit.value().get<float>()));
-					}
-					else if (valit.key() == "ShakeStrength") {
+					} else if (valit.key() == "ShakeStrength") {
 						customShakeStrength.insert(std::pair<TESForm*, float>(form, valit.value().get<float>()));
-					}
-					else if (valit.key() == "FXStrength") {
+					} else if (valit.key() == "FXStrength") {
 						customFXStrength.insert(std::pair<TESForm*, float>(form, valit.value().get<float>()));
 					}
 				}
@@ -835,11 +848,9 @@ extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Load(const F4SE::LoadInterface* a_f
 		if (msg->type == F4SE::MessagingInterface::kGameDataReady) {
 			InitializePlugin();
 			LoadConfigs();
-		}
-		else if (msg->type == F4SE::MessagingInterface::kPostLoadGame) {
+		} else if (msg->type == F4SE::MessagingInterface::kPostLoadGame) {
 			LoadConfigs();
-		}
-		else if (msg->type == F4SE::MessagingInterface::kNewGame) {
+		} else if (msg->type == F4SE::MessagingInterface::kNewGame) {
 			LoadConfigs();
 		}
 	});
